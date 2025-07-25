@@ -1,91 +1,121 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
 export default function SetLocationPage() {
-  const [selectedBuilding, setSelectedBuilding] = useState('Gedung F'); // Default gedung
-  const [pinPosition, setPinPosition] = useState(null); // { x: 0.5, y: 0.5 } in percentage
+  const [selectedBuilding, setSelectedBuilding] = useState('');
+  const [selectedFloor, setSelectedFloor] = useState('');
+  const [pinPosition, setPinPosition] = useState(null);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const imageContainerRef = useRef(null); // Ref untuk div pembungkus gambar
-  const aparId = "APAR-XXX"; // Placeholder: Di aplikasi nyata, ID APAR akan diterima dari URL atau state
+  const imageContainerRef = useRef(null);
+  const aparId = "APAR-XXX"; 
 
-  // Pilihan Gedung
+  const denahImages = {
+    "Gedung F": {
+      "Lt Basement": "/denah-gedung-f-lt-basement.jpg",
+      "Lt Semi-Basement": "/denah-gedung-f-lt-semi-basement.jpg",
+      "Lantai 1": "/denah-gedung-f-lantai-1.jpg",
+      "Lantai 2": "/denah-gedung-f-lantai-2.jpg",
+      "Lantai 3": "/denah-gedung-f-lantai-3.jpg",
+      "Lantai 4": "/denah-gedung-f-lantai-4.jpg",
+      "Lantai 5": "/denah-gedung-f-lantai-5.jpg",
+      "Lantai 6": "/denah-gedung-f-lantai-6.jpg",
+    },
+    "Gedung G": {
+      "Lt Basement": "/denah-gedung-g-lt-basement.jpg",
+      "Lt Semi-Basement": "/denah-gedung-g-lt-semi-basement.jpg",
+      "Lantai 1": "/denah-gedung-g-lantai-1.jpg",
+      "Lantai 2": "/denah-gedung-g-lantai-2.jpg",
+      "Lantai 3": "/denah-gedung-g-lantai-3.jpg",
+      "Lantai 4": "/denah-gedung-g-lantai-4.jpg",
+      "Lantai 5": "/denah-gedung-g-lantai-5.jpg",
+      "Lantai 6": "/denah-gedung-g-lantai-6.jpg",
+    },
+    "Gedung H": {
+      "Lt Basement": "/denah-gedung-h-lt-basement.jpg",
+      "Lt Semi-Basement": "/denah-gedung-h-lt-semi-basement.jpg",
+      "Lantai 1": "/denah-gedung-h-lantai-1.jpg",
+      "Lantai 2": "/denah-gedung-h-lantai-2.jpg",
+    },
+  };
+
   const gedungOptions = [
-    { value: 'Gedung F', label: 'Gedung F' },
-    { value: 'Gedung G', label: 'Gedung G' },
-    { value: 'Gedung H', label: 'Gedung H' },
+    { value: '', label: 'Pilih Gedung' },
+    ...Object.keys(denahImages).map(key => ({ value: key, label: key }))
   ];
 
-  const currentDenahImage = `/denah-gedung-${selectedBuilding.replace(' ', '-').toLowerCase()}.jpg`;
+  const floorOptions = useMemo(() => {
+    if (selectedBuilding && denahImages[selectedBuilding]) {
+      return [
+        { value: '', label: 'Pilih Lantai' },
+        ...Object.keys(denahImages[selectedBuilding]).map(key => ({ value: key, label: key }))
+      ];
+    }
+    return [{ value: '', label: 'Pilih Lantai' }];
+  }, [selectedBuilding]);
 
-  // Handle klik pada gambar denah
+  const currentDenahImageSrc = useMemo(() => {
+    if (selectedBuilding && selectedFloor && denahImages[selectedBuilding] && denahImages[selectedBuilding][selectedFloor]) {
+      return denahImages[selectedBuilding][selectedFloor];
+    }
+    return null;
+  }, [selectedBuilding, selectedFloor]);
+
+
   const handleImageClick = (e) => {
-    if (!imageContainerRef.current) return;
+    if (!currentDenahImageSrc || !imageContainerRef.current) {
+        setError('Pilih Gedung dan Lantai terlebih dahulu untuk menentukan lokasi.');
+        return;
+    }
 
-    // Mendapatkan posisi div pembungkus gambar relatif terhadap viewport
     const rect = imageContainerRef.current.getBoundingClientRect();
-    
-    // Menghitung posisi klik relatif terhadap gambar (dalam piksel)
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Menghitung posisi sebagai persentase dari lebar/tinggi gambar
-    // Ini penting agar posisi pin tetap konsisten saat gambar menyesuaikan ukuran
     const xPercentage = x / rect.width;
     const yPercentage = y / rect.height;
 
     setPinPosition({ x: xPercentage, y: yPercentage });
-    setError(''); // Clear error if any
+    setError('');
   };
 
-  // Handle simpan lokasi
   const handleSaveLocation = async () => {
     if (!pinPosition) {
       setError('Mohon tentukan lokasi APAR di denah.');
       return;
     }
+    if (!selectedBuilding || !selectedFloor) {
+        setError('Mohon pilih Gedung dan Lantai terlebih dahulu.');
+        return;
+    }
 
     setSuccessMessage('');
     setError('');
 
-    // Data yang akan dikirim ke backend
     const locationData = {
-      aparId: aparId, // Ganti dengan ID APAR aktual
+      aparId: aparId, 
       gedung: selectedBuilding,
-      // Simpan koordinat sebagai persentase untuk responsivitas
+      lantai: selectedFloor,
       coordinateX: pinPosition.x,
       coordinateY: pinPosition.y,
-      // Anda mungkin juga ingin menyimpan ukuran asli gambar denah untuk referensi
-      // atau menyimpan 'lokasiSpesifik' dalam bentuk teks jika ada
     };
 
     console.log('Menyimpan lokasi APAR:', locationData);
-    setSuccessMessage(`Lokasi APAR ${aparId} di ${selectedBuilding} berhasil disimpan!`);
+    setSuccessMessage(`Lokasi APAR ${aparId} di ${selectedBuilding}, ${selectedFloor} berhasil disimpan!`);
 
     // TODO: Di sini nanti Anda akan mengirim data ke API backend Anda
-    // Contoh:
-    // try {
-    //   const response = await fetch('/api/apar/set-location', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(locationData),
-    //   });
-    //   if (response.ok) {
-    //     setSuccessMessage(`Lokasi APAR ${aparId} berhasil disimpan!`);
-    //     // Mungkin redirect atau tampilkan opsi lanjutan
-    //   } else {
-    //     const errorData = await response.json();
-    //     setError(errorData.message || 'Gagal menyimpan lokasi.');
-    //   }
-    // } catch (err) {
-    //   setError('Terjadi kesalahan jaringan.');
-    //   console.error(err);
-    // }
   };
+
+  useEffect(() => {
+    setPinPosition(null);
+    setError('');
+    setSuccessMessage('');
+  }, [selectedBuilding, selectedFloor]);
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -98,7 +128,7 @@ export default function SetLocationPage() {
       </header>
 
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 w-full max-w-4xl mx-auto">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Pilih Gedung dan Tentukan Titik Lokasi pada Denah</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Pilih Lokasi di Denah</h2>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
@@ -111,54 +141,83 @@ export default function SetLocationPage() {
           </div>
         )}
 
-        {/* Pemilihan Gedung */}
-        <div className="mb-6">
-          <label htmlFor="gedungSelect" className="block text-gray-700 text-sm font-bold mb-2">
-            Pilih Gedung:
-          </label>
-          <select
-            id="gedungSelect"
-            className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500 max-w-xs"
-            value={selectedBuilding}
-            onChange={(e) => {
-                setSelectedBuilding(e.target.value);
-                setPinPosition(null); // Reset pin saat gedung berubah
-                setError('');
-                setSuccessMessage('');
-            }}
-          >
-            {gedungOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        {/* Pemilihan Gedung dan Lantai */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label htmlFor="gedungSelect" className="block text-gray-700 text-sm font-bold mb-2">
+              Pilih Gedung: <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="gedungSelect"
+              className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
+              value={selectedBuilding}
+              onChange={(e) => {
+                  setSelectedBuilding(e.target.value);
+                  setSelectedFloor(''); // Reset lantai saat gedung berubah
+              }}
+              required
+            >
+              {gedungOptions.map((option) => (
+                <option key={option.value} value={option.value} disabled={option.value === ''}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="floorSelect" className="block text-gray-700 text-sm font-bold mb-2">
+              Pilih Lantai: <span className="text-red-500">*</span>
+            </label>
+            {/* Perhatian: Pastikan semua properti ada di dalam tag <select> yang sama! */}
+            <select
+              id="floorSelect"
+              className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
+              value={selectedFloor}
+              onChange={(e) => setSelectedFloor(e.target.value)}
+              required
+              disabled={!selectedBuilding || floorOptions.length <= 1 || selectedBuilding === ''}
+            >
+              {floorOptions.map((option) => (
+                <option key={option.value} value={option.value} disabled={option.value === ''}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {!selectedBuilding && <p className="text-xs text-gray-500 mt-1">Pilih gedung terlebih dahulu.</p>}
+          </div>
         </div>
 
         {/* Area Denah Gedung */}
-        <div className="relative w-full overflow-hidden border border-gray-300 rounded-lg shadow-inner" style={{ aspectRatio: '16/9' }}> {/* Menggunakan aspect ratio agar responsif */}
-          <div 
-            ref={imageContainerRef}
-            className="relative w-full h-full cursor-crosshair"
-            onClick={handleImageClick}
-          >
-            <Image
-              src={currentDenahImage}
-              alt={`Denah ${selectedBuilding}`}
-              layout="fill" // Gunakan layout="fill" untuk gambar yang memenuhi parent-nya
-              objectFit="contain" // Pastikan gambar tidak terdistorsi dan terlihat penuh
-              className="rounded-lg"
-              priority // Muat gambar ini lebih awal
-            />
-            {pinPosition && (
-              <div
-                className="absolute bg-red-500 rounded-full w-4 h-4 border-2 border-white transform -translate-x-1/2 -translate-y-1/2"
-                style={{ left: `${pinPosition.x * 100}%`, top: `${pinPosition.y * 100}%` }}
-              >
-                {/* Anda bisa menambahkan ikon APAR kecil di sini */}
-              </div>
-            )}
-          </div>
+        <div className="relative w-full overflow-hidden border border-gray-300 rounded-lg shadow-inner" style={{ aspectRatio: '16/9' }}>
+          {currentDenahImageSrc ? (
+            <div 
+              ref={imageContainerRef}
+              className="relative w-full h-full cursor-crosshair"
+              onClick={handleImageClick}
+            >
+              <Image
+                src={currentDenahImageSrc}
+                alt={`Denah ${selectedBuilding} - ${selectedFloor}`}
+                layout="fill"
+                objectFit="contain"
+                className="rounded-lg"
+                priority
+              />
+              {pinPosition && (
+                <div
+                  className="absolute bg-red-500 rounded-full w-4 h-4 border-2 border-white transform -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${pinPosition.x * 100}%`, top: `${pinPosition.y * 100}%` }}
+                >
+                  {/* Ikon APAR di sini */}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500 text-lg">
+              Pilih Gedung dan Lantai untuk menampilkan denah.
+            </div>
+          )}
         </div>
         
         {pinPosition && (

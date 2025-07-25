@@ -4,15 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 export default function RegisterAparPage() {
-  // State untuk setiap input form
   const [aparId, setAparId] = useState('');
   const [jenisApar, setJenisApar] = useState('');
   const [kapasitas, setKapasitas] = useState('');
   const [merek, setMerek] = useState('');
   const [tanggalPengadaan, setTanggalPengadaan] = useState('');
   const [tanggalKadaluarsa, setTanggalKadaluarsa] = useState('');
+  
+  const [jenisPenempatan, setJenisPenempatan] = useState(''); // 'permanen' atau 'non-permanen'
   const [gedung, setGedung] = useState('');
-  const [lokasiSpesifik, setLokasiSpesifik] = useState(''); // Untuk lokasi spesifik di dalam gedung
+  const [lokasiSpesifik, setLokasiSpesifik] = useState(''); // Akan jadi lantai
   const [keterangan, setKeterangan] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -27,25 +28,67 @@ export default function RegisterAparPage() {
     { value: 'Clean Agent', label: 'Clean Agent' },
   ];
 
-  // Pilihan Gedung (sesuai yang kita diskusikan)
+  // --- PERUBAHAN DI SINI: Data Struktur Lantai per Gedung ---
+  const buildingFloors = {
+    "Gedung F": [
+      "Pilih Lantai", // Default placeholder
+      "Lt Basement",
+      "Lt Semi-Basement",
+      "Lantai 1",
+      "Lantai 2",
+      "Lantai 3",
+      "Lantai 4",
+      "Lantai 5",
+      "Lantai 6"
+    ],
+    "Gedung G": [
+      "Pilih Lantai", // Default placeholder
+      "Lt Basement",
+      "Lt Semi-Basement",
+      "Lantai 1",
+      "Lantai 2",
+      "Lantai 3",
+      "Lantai 4",
+      "Lantai 5",
+      "Lantai 6"
+    ],
+    "Gedung H": [
+      "Pilih Lantai", // Default placeholder
+      "Lt Basement",
+      "Lt Semi-Basement",
+      "Lantai 1",
+      "Lantai 2"
+    ]
+  };
+
+  // Pilihan Gedung (diambil dari keys buildingFloors)
   const gedungOptions = [
     { value: '', label: 'Pilih Gedung' },
-    { value: 'Gedung F', label: 'Gedung F' },
-    { value: 'Gedung G', label: 'Gedung G' },
-    { value: 'Gedung H', label: 'Gedung H' },
+    ...Object.keys(buildingFloors).map(key => ({ value: key, label: key }))
   ];
+
+  // State untuk menyimpan daftar lantai yang tersedia berdasarkan gedung yang dipilih
+  const [availableFloors, setAvailableFloors] = useState([]);
+  // --- Akhir Perubahan ---
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
 
-    // Validasi sederhana
-    if (!aparId || !jenisApar || !kapasitas || !tanggalPengadaan || !tanggalKadaluarsa || !gedung || !lokasiSpesifik) {
-      setError('Mohon lengkapi semua bidang yang wajib diisi.');
+    if (!aparId || !jenisApar || !kapasitas || !tanggalPengadaan || !tanggalKadaluarsa || !jenisPenempatan) {
+      setError('Mohon lengkapi semua bidang wajib (*).');
       return;
     }
 
+    if (jenisPenempatan === 'permanen') {
+        if (!gedung || gedung === '' || !lokasiSpesifik || lokasiSpesifik === 'Pilih Lantai') {
+            setError('Untuk penempatan Permanen, Gedung dan Lantai wajib diisi.');
+            return;
+        }
+    }
+    
     const aparData = {
       aparId,
       jenisApar,
@@ -53,44 +96,44 @@ export default function RegisterAparPage() {
       merek,
       tanggalPengadaan,
       tanggalKadaluarsa,
-      gedung,
-      lokasiSpesifik,
+      jenisPenempatan,
+      gedung: jenisPenempatan === 'permanen' ? gedung : null,
+      lokasiSpesifik: jenisPenempatan === 'permanen' ? lokasiSpesifik : null, // Ini sekarang adalah lantai
       keterangan,
     };
 
     console.log('Data APAR yang didaftarkan:', aparData);
-    setSuccessMessage('APAR berhasil didaftarkan (simulasi)! QR Code akan dibuat.');
+    setSuccessMessage(`APAR ${aparId} berhasil didaftarkan sebagai ${jenisPenempatan}!`);
 
     // TODO: Di sini nanti Anda akan mengirim data ke API backend
-    // Contoh:
-    // try {
-    //   const response = await fetch('/api/apar/register', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(aparData),
-    //   });
-    //   if (response.ok) {
-    //     const result = await response.json();
-    //     setSuccessMessage(`APAR ${aparId} berhasil didaftarkan. QR Code: ${result.qrCodeUrl}`);
-    //     // Reset form
-    //     setAparId('');
-    //     setJenisApar('');
-    //     setKapasitas('');
-    //     setMerek('');
-    //     setTanggalPengadaan('');
-    //     setTanggalKadaluarsa('');
-    //     setGedung('');
-    //     setLokasiSpesifik('');
-    //     setKeterangan('');
-    //   } else {
-    //     const errorData = await response.json();
-    //     setError(errorData.message || 'Gagal mendaftarkan APAR.');
-    //   }
-    // } catch (err) {
-    //   setError('Terjadi kesalahan jaringan.');
-    //   console.error(err);
-    // }
+    // Setelah sukses, Anda bisa reset form atau arahkan pengguna.
+    setAparId('');
+    setJenisApar('');
+    setKapasitas('');
+    setMerek('');
+    setTanggalPengadaan('');
+    setTanggalKadaluarsa('');
+    setJenisPenempatan('');
+    setGedung('');
+    setLokasiSpesifik('');
+    setKeterangan('');
+    setAvailableFloors([]); // Reset available floors
   };
+
+  // --- PERUBAHAN DI SINI: Handle perubahan Gedung ---
+  const handleGedungChange = (e) => {
+    const selectedGedung = e.target.value;
+    setGedung(selectedGedung);
+    setLokasiSpesifik(''); // Reset lokasi spesifik (lantai) saat gedung berubah
+
+    if (selectedGedung && buildingFloors[selectedGedung]) {
+      setAvailableFloors(buildingFloors[selectedGedung]);
+    } else {
+      setAvailableFloors([]);
+    }
+  };
+  // --- Akhir Perubahan ---
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -213,42 +256,99 @@ export default function RegisterAparPage() {
               required
             />
           </div>
-
-          {/* Gedung */}
+          
+          {/* Jenis Penempatan APAR (Radio Buttons) */}
           <div className="mb-4">
-            <label htmlFor="gedung" className="block text-gray-700 text-sm font-bold mb-2">
-              Gedung <span className="text-red-500">*</span>
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Jenis Penempatan APAR <span className="text-red-500">*</span>
             </label>
-            <select
-              id="gedung"
-              className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
-              value={gedung}
-              onChange={(e) => setGedung(e.target.value)}
-              required
-            >
-              {gedungOptions.map((option) => (
-                <option key={option.value} value={option.value} disabled={option.value === ''}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-blue-600 h-4 w-4"
+                  name="jenisPenempatan"
+                  value="permanen"
+                  checked={jenisPenempatan === 'permanen'}
+                  onChange={(e) => {
+                    setJenisPenempatan(e.target.value);
+                    if (e.target.value === 'non-permanen') { 
+                        setGedung('');
+                        setLokasiSpesifik('');
+                        setAvailableFloors([]); // Kosongkan daftar lantai
+                    }
+                  }}
+                  required
+                />
+                <span className="ml-2 text-gray-700">Permanen (Posisi Tetap)</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-blue-600 h-4 w-4"
+                  name="jenisPenempatan"
+                  value="non-permanen"
+                  checked={jenisPenempatan === 'non-permanen'}
+                  onChange={(e) => {
+                    setJenisPenempatan(e.target.value);
+                    setGedung(''); // Kosongkan gedung dan lantai jika non-permanen
+                    setLokasiSpesifik('');
+                    setAvailableFloors([]);
+                  }}
+                  required
+                />
+                <span className="ml-2 text-gray-700">Non-Permanen (Posisi Berpindah)</span>
+              </label>
+            </div>
           </div>
 
-          {/* Lokasi Spesifik */}
-          <div className="mb-4">
-            <label htmlFor="lokasiSpesifik" className="block text-gray-700 text-sm font-bold mb-2">
-              Lokasi Spesifik (misal: Lantai 1, Ruang Genset) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="lokasiSpesifik"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
-              placeholder="Contoh: Lantai 1, Dekat Lift"
-              value={lokasiSpesifik}
-              onChange={(e) => setLokasiSpesifik(e.target.value)}
-              required
-            />
-          </div>
+          {/* Conditional Rendering untuk Lokasi (Gedung dan Lantai) */}
+          {jenisPenempatan === 'permanen' && (
+            <>
+              {/* Gedung */}
+              <div className="mb-4">
+                <label htmlFor="gedung" className="block text-gray-700 text-sm font-bold mb-2">
+                  Gedung <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="gedung"
+                  className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
+                  value={gedung}
+                  onChange={handleGedungChange} // Gunakan handler baru
+                  required
+                >
+                  {gedungOptions.map((option) => (
+                    <option key={option.value} value={option.value} disabled={option.value === ''}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lokasi Spesifik (Lantai - kini dropdown) */}
+              <div className="mb-4">
+                <label htmlFor="lokasiSpesifik" className="block text-gray-700 text-sm font-bold mb-2">
+                  Lantai <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="lokasiSpesifik"
+                  className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
+                  value={lokasiSpesifik}
+                  onChange={(e) => setLokasiSpesifik(e.target.value)}
+                  required
+                  disabled={!gedung || availableFloors.length === 0 || availableFloors[0] === "Pilih Lantai"} // Disable jika gedung belum dipilih atau tidak ada lantai
+                >
+                  {availableFloors.map((floor, index) => (
+                    <option key={index} value={floor} disabled={floor === "Pilih Lantai"}>
+                      {floor}
+                    </option>
+                  ))}
+                </select>
+                {!gedung && <p className="text-xs text-gray-500 mt-1">Pilih gedung terlebih dahulu untuk melihat daftar lantai.</p>}
+                {gedung && availableFloors.length === 0 && <p className="text-xs text-gray-500 mt-1">Tidak ada lantai tersedia untuk gedung ini.</p>}
+              </div>
+            </>
+          )}
 
           {/* Keterangan Tambahan */}
           <div className="mb-6">
