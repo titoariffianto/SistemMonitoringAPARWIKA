@@ -201,7 +201,7 @@ export default function DashboardPage() {
               >
                 <li>
                   <Link
-                    href="/apar/register/addApar"
+                    href="/apar/register"
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition duration-150 ease-in-out"
                   >
                     Tambah APAR
@@ -209,7 +209,7 @@ export default function DashboardPage() {
                 </li>
                 <li>
                   <Link
-                    href="/apar/register/addUser"
+                    href="/user/addUser"
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition duration-150 ease-in-out"
                   >
                     Tambah User
@@ -267,7 +267,7 @@ export default function DashboardPage() {
               >
                 <li>
                   <Link
-                    href="/apar/daftar/listApar"
+                    href="/apar/register/listApar"
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition duration-150 ease-in-out"
                   >
                     Daftar APAR
@@ -275,7 +275,7 @@ export default function DashboardPage() {
                 </li>
                 <li>
                   <Link
-                    href="/apar/daftar/listUser"
+                    href="/user/listUser"
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition duration-150 ease-in-out"
                   >
                     Daftar User

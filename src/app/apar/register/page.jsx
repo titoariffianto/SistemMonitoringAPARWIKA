@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from 'react'; // Tambahkan useMemo, useRef, useEffect
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // Tambahkan Image
+import Image from 'next/image';
 
 export default function RegisterAparPage() {
   const [aparId, setAparId] = useState('');
@@ -12,16 +12,28 @@ export default function RegisterAparPage() {
   const [tanggalPengadaan, setTanggalPengadaan] = useState('');
   const [tanggalKadaluarsa, setTanggalKadaluarsa] = useState('');
   
-  const [jenisPenempatan, setJenisPenempatan] = useState(''); // 'permanen' atau 'non-permanen'
+  const [jenisPenempatan, setJenisPenempatan] = useState('');
   const [gedung, setGedung] = useState('');
-  const [lokasiSpesifik, setLokasiSpesifik] = useState(''); // Akan jadi lantai
+  const [lokasiSpesifik, setLokasiSpesifik] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState(null);
+  const [registeredAparId, setRegisteredAparId] = useState('');
+  const [pinPosition, setPinPosition] = useState(null); 
 
-  // --- Start: State dan Data untuk Denah Interaktif (disalin dari SetLocationPage) ---
-  const [pinPosition, setPinPosition] = useState(null); // { x: 0.5, y: 0.5 } in percentage
   const imageContainerRef = useRef(null);
+  const printQrRef = useRef(null);
+
+  // Pilihan Jenis APAR
+  const jenisAparOptions = [
+    { value: '', label: 'Pilih Jenis APAR' },
+    { value: 'Air', label: 'Air (Water)' },
+    { value: 'Busa', label: 'Busa (Foam)' },
+    { value: 'Powder', label: 'Serbuk Kimia (Dry Chemical Powder)' },
+    { value: 'CO2', label: 'Karbon Dioksida (CO2)' },
+    { value: 'Clean Agent', label: 'Clean Agent' },
+  ];
 
   const denahImages = {
     "Gedung F": {
@@ -52,15 +64,20 @@ export default function RegisterAparPage() {
     },
   };
 
+  const gedungOptions = [
+    { value: '', label: 'Pilih Gedung' },
+    ...Object.keys(denahImages).map(key => ({ value: key, label: key }))
+  ];
+
   const floorOptions = useMemo(() => {
-    if (gedung && denahImages[gedung]) { // Menggunakan 'gedung' di sini
+    if (gedung && denahImages[gedung]) {
       return [
         { value: '', label: 'Pilih Lantai' },
         ...Object.keys(denahImages[gedung]).map(key => ({ value: key, label: key }))
       ];
     }
     return [{ value: '', label: 'Pilih Lantai' }];
-  }, [gedung]); // Dependensi adalah 'gedung'
+  }, [gedung]);
 
   const currentDenahImageSrc = useMemo(() => {
     if (gedung && lokasiSpesifik && denahImages[gedung] && denahImages[gedung][lokasiSpesifik]) {
@@ -86,34 +103,19 @@ export default function RegisterAparPage() {
     setError('');
   };
 
-  // Reset pin ketika gedung atau lantai berubah
   useEffect(() => {
     setPinPosition(null);
     setError('');
     setSuccessMessage('');
-  }, [gedung, lokasiSpesifik]); // Dependensi adalah 'gedung' dan 'lokasiSpesifik'
-  // --- End: State dan Data untuk Denah Interaktif ---
-
-  // Pilihan Jenis APAR
-  const jenisAparOptions = [
-    { value: '', label: 'Pilih Jenis APAR' },
-    { value: 'Air', label: 'Air (Water)' },
-    { value: 'Busa', label: 'Busa (Foam)' },
-    { value: 'Powder', label: 'Serbuk Kimia (Dry Chemical Powder)' },
-    { value: 'CO2', label: 'Karbon Dioksida (CO2)' },
-    { value: 'Clean Agent', label: 'Clean Agent' },
-  ];
-
-  // Pilihan Gedung (diambil dari keys denahImages, bukan buildingFloors lagi)
-  const gedungOptions = [
-    { value: '', label: 'Pilih Gedung' },
-    ...Object.keys(denahImages).map(key => ({ value: key, label: key }))
-  ];
+    setQrCodeDataUrl(null);
+  }, [gedung, lokasiSpesifik, jenisPenempatan]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
+    setQrCodeDataUrl(null);
+    setRegisteredAparId('');
 
     if (!aparId || !jenisApar || !kapasitas || !tanggalPengadaan || !tanggalKadaluarsa || !jenisPenempatan) {
       setError('Mohon lengkapi semua bidang wajib (*).');
@@ -125,7 +127,6 @@ export default function RegisterAparPage() {
             setError('Untuk penempatan Permanen, Gedung dan Lantai wajib diisi.');
             return;
         }
-        // Validasi tambahan: pin harus sudah ditempatkan jika permanen
         if (!pinPosition) {
             setError('Untuk penempatan Permanen, mohon tentukan lokasi di denah.');
             return;
@@ -140,7 +141,6 @@ export default function RegisterAparPage() {
       tanggalPengadaan,
       tanggalKadaluarsa,
       jenisPenempatan,
-      // Jika permanen, sertakan lokasi & koordinat. Jika non-permanen, null.
       gedung: jenisPenempatan === 'permanen' ? gedung : null,
       lokasiSpesifik: jenisPenempatan === 'permanen' ? lokasiSpesifik : null,
       coordinateX: jenisPenempatan === 'permanen' && pinPosition ? pinPosition.x : null,
@@ -148,30 +148,72 @@ export default function RegisterAparPage() {
       keterangan,
     };
 
-    console.log('Data APAR yang didaftarkan:', aparData);
-    setSuccessMessage(`APAR ${aparId} berhasil didaftarkan sebagai ${jenisPenempatan}!`);
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError('Anda harus login untuk mendaftarkan APAR.');
+            return;
+        }
 
-    // TODO: Di sini nanti Anda akan mengirim data ke API backend
-    // Setelah sukses, Anda bisa reset form atau arahkan pengguna.
-    setAparId('');
-    setJenisApar('');
-    setKapasitas('');
-    setMerek('');
-    setTanggalPengadaan('');
-    setTanggalKadaluarsa('');
-    setJenisPenempatan('');
-    setGedung('');
-    setLokasiSpesifik('');
-    setKeterangan('');
-    // setAvailableFloors([]); // Tidak perlu karena floorOptions sudah useMemo
-    setPinPosition(null); // Reset pin setelah submit
+        const response = await fetch('http://localhost:5000/api/apar/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(aparData),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            setSuccessMessage(`APAR ${result.aparIdentifier} berhasil didaftarkan! Silakan cetak QR Code.`);
+            setQrCodeDataUrl(result.qrCodeDataUrl);
+            setRegisteredAparId(result.aparIdentifier);
+
+            setAparId('');
+            setJenisApar('');
+            setKapasitas('');
+            setMerek('');
+            setTanggalPengadaan('');
+            setTanggalKadaluarsa('');
+            setJenisPenempatan('');
+            setGedung('');
+            setLokasiSpesifik('');
+            setKeterangan('');
+            setPinPosition(null); 
+        } else {
+            const errorData = await response.json();
+            setError(errorData.message || 'Gagal mendaftarkan APAR. Pastikan Anda memiliki izin.');
+            console.error('API Error:', errorData);
+        }
+    } catch (err) {
+        setError('Terjadi kesalahan jaringan atau server tidak dapat dijangkau.');
+        console.error('Network error:', err);
+    }
   };
 
   const handleGedungChange = (e) => {
     const selectedGedung = e.target.value;
     setGedung(selectedGedung);
-    setLokasiSpesifik(''); // Reset lokasi spesifik (lantai) saat gedung berubah
-    // availableFloors akan otomatis diupdate oleh useMemo
+    setLokasiSpesifik('');
+  };
+
+  const handlePrintQr = () => {
+    if (printQrRef.current) {
+      const printWindow = window.open('', '', 'height=600,width=800');
+      printWindow.document.write('<html><head><title>Cetak QR Code</title>');
+      printWindow.document.write('<style>');
+      printWindow.document.write('body { font-family: sans-serif; text-align: center; margin: 20px; }');
+      printWindow.document.write('img { max-width: 300px; height: auto; margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }');
+      printWindow.document.write('p { font-size: 1.2em; font-weight: bold; }');
+      printWindow.document.write('</style>');
+      printWindow.document.write('</head><body>');
+      printWindow.document.write(`<p>QR Code untuk APAR ID: ${registeredAparId}</p>`);
+      printWindow.document.write(`<img src="${qrCodeDataUrl}" alt="QR Code APAR ${registeredAparId}" />`);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      printWindow.print();
+    }
   };
 
 
@@ -205,7 +247,7 @@ export default function RegisterAparPage() {
             </div>
           )}
 
-          {/* Nomor Seri/ID APAR */}
+          {/* Bagian Input Form APAR */}
           <div>
             <label htmlFor="aparId" className="block text-gray-700 text-sm font-medium mb-2">
               Nomor Seri / ID Unik APAR <span className="text-red-500">*</span>
@@ -221,7 +263,6 @@ export default function RegisterAparPage() {
             />
           </div>
 
-          {/* Jenis APAR */}
           <div>
             <label htmlFor="jenisApar" className="block text-gray-700 text-sm font-medium mb-2">
               Jenis APAR <span className="text-red-500">*</span>
@@ -241,7 +282,6 @@ export default function RegisterAparPage() {
             </select>
           </div>
 
-          {/* Kapasitas/Ukuran */}
           <div>
             <label htmlFor="kapasitas" className="block text-gray-700 text-sm font-medium mb-2">
               Kapasitas / Ukuran <span className="text-red-500">*</span>
@@ -257,7 +297,6 @@ export default function RegisterAparPage() {
             />
           </div>
 
-          {/* Merek/Produsen */}
           <div>
             <label htmlFor="merek" className="block text-gray-700 text-sm font-medium mb-2">
               Merek / Produsen
@@ -272,7 +311,6 @@ export default function RegisterAparPage() {
             />
           </div>
 
-          {/* Tanggal Pengadaan */}
           <div>
             <label htmlFor="tanggalPengadaan" className="block text-gray-700 text-sm font-medium mb-2">
               Tanggal Pengadaan <span className="text-red-500">*</span>
@@ -287,7 +325,6 @@ export default function RegisterAparPage() {
             />
           </div>
 
-          {/* Tanggal Kadaluarsa Media */}
           <div>
             <label htmlFor="tanggalKadaluarsa" className="block text-gray-700 text-sm font-medium mb-2">
               Tanggal Kadaluarsa Media <span className="text-red-500">*</span>
@@ -302,7 +339,6 @@ export default function RegisterAparPage() {
             />
           </div>
           
-          {/* Jenis Penempatan APAR (Radio Buttons) */}
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
               Jenis Penempatan APAR <span className="text-red-500">*</span>
@@ -320,7 +356,6 @@ export default function RegisterAparPage() {
                     if (e.target.value === 'non-permanen') { 
                         setGedung('');
                         setLokasiSpesifik('');
-                        // availableFloors akan otomatis diupdate oleh useMemo
                     }
                   }}
                   required
@@ -338,7 +373,6 @@ export default function RegisterAparPage() {
                     setJenisPenempatan(e.target.value);
                     setGedung('');
                     setLokasiSpesifik('');
-                    // availableFloors akan otomatis diupdate oleh useMemo
                   }}
                   required
                 />
@@ -350,7 +384,6 @@ export default function RegisterAparPage() {
           {/* Conditional Rendering untuk Lokasi (Gedung, Lantai, dan Denah Interaktif) */}
           {jenisPenempatan === 'permanen' && (
             <>
-              {/* Gedung */}
               <div>
                 <label htmlFor="gedung" className="block text-gray-700 text-sm font-medium mb-2">
                   Gedung <span className="text-red-500">*</span>
@@ -370,7 +403,6 @@ export default function RegisterAparPage() {
                 </select>
               </div>
 
-              {/* Lokasi Spesifik (Lantai - kini dropdown) */}
               <div>
                 <label htmlFor="lokasiSpesifik" className="block text-gray-700 text-sm font-medium mb-2">
                   Lantai <span className="text-red-500">*</span>
@@ -393,8 +425,7 @@ export default function RegisterAparPage() {
                 {gedung && floorOptions.length <= 1 && <p className="text-xs text-gray-500 mt-1">Tidak ada lantai tersedia untuk gedung ini.</p>}
               </div>
 
-              {/* Area Denah Gedung Interaktif */}
-              <div className="pt-2"> {/* Added pt-2 for spacing */}
+              <div className="pt-2">
                 <p className="block text-gray-700 text-sm font-medium mb-2">
                   Tentukan Titik Lokasi pada Denah: <span className="text-red-500">*</span>
                 </p>
@@ -430,7 +461,7 @@ export default function RegisterAparPage() {
                 </div>
                 
                 {pinPosition && (
-                  <p className="text-gray-600 text-center mt-2 text-sm"> {/* mt-2 instead of mt-4 */}
+                  <p className="text-gray-600 text-center mt-2 text-sm">
                     Titik terpilih: X: {(pinPosition.x * 100).toFixed(2)}%, Y: {(pinPosition.y * 100).toFixed(2)}%
                   </p>
                 )}
@@ -438,7 +469,6 @@ export default function RegisterAparPage() {
             </>
           )}
 
-          {/* Keterangan Tambahan */}
           <div>
             <label htmlFor="keterangan" className="block text-gray-700 text-sm font-medium mb-2">
               Keterangan Tambahan
@@ -463,6 +493,32 @@ export default function RegisterAparPage() {
             </button>
           </div>
         </form>
+
+        {/* Bagian Tampilan QR Code (Setelah Sukses Mendaftar) */}
+        {qrCodeDataUrl && registeredAparId && (
+          <div className="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200 text-center">
+            <h3 className="text-xl font-bold text-blue-800 mb-4">QR Code APAR {registeredAparId}</h3>
+            <div ref={printQrRef} className="inline-block p-4 bg-white rounded-lg shadow-md">
+              <Image 
+                src={qrCodeDataUrl}
+                alt={`QR Code untuk APAR ${registeredAparId}`}
+                width={200}
+                height={200}
+                className="mx-auto"
+              />
+              <p className="mt-2 text-gray-700 text-sm font-semibold">Scan QR ini untuk inspeksi</p>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={handlePrintQr}
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out"
+              >
+                <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6m-3-4v4m-6-3H2m.002 3H22"></path></svg>
+                Cetak QR Code
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

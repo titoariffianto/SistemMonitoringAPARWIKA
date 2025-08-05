@@ -2,72 +2,105 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // Import komponen Image
+import Image from 'next/image';
+import { useRouter } from 'next/navigation'; // Import useRouter untuk navigasi
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(''); // Menggunakan 'email' sebagai placeholder, tapi backend pakai 'username'
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    console.log('Email:', email);
-    console.log('Password:', password);
+    setSuccessMessage('');
 
     if (!email || !password) {
       setError('Email dan password harus diisi.');
       return;
     }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/user/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: email, password: password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Login berhasil:', data);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userRole', data.user.role);
+        
+        setSuccessMessage('Login berhasil! Mengarahkan ke dashboard...');
+        router.push('/dashboard'); 
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Login gagal. Periksa kembali kredensial Anda.');
+        console.error('Login error:', errorData);
+      }
+    } catch (err) {
+      setError('Terjadi kesalahan jaringan atau server tidak dapat dijangkau.');
+      console.error('Network or server error:', err);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-inter">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-        {/* Tambahkan logo di sini, sebelum <h2> */}
-        <div className="flex justify-center mb-6"> {/* Kontainer untuk memposisikan logo di tengah */}
+        <div className="flex justify-center mb-6">
           <Image
-            src="/WikaGedung.png" // Path ke logo Anda, relatif terhadap folder public
-            alt="Logo Perusahaan/Proyek" // Deskripsi alt untuk aksesibilitas
-            width={120} // Lebar dasar gambar (dalam piksel)
-            height={120} // Tinggi dasar gambar (dalam piksel)
-            className="h-auto max-w-full" // Kelas Tailwind untuk responsivitas
+            src="/WikaGedung.png"
+            alt="Logo Perusahaan/Proyek"
+            width={120}
+            height={120}
+            className="h-auto max-w-full"
           />
         </div>
-
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Login</h2>
+        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Login ke APAR Monitoring</h2>
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-              <span className="block sm:inline">{error}</span>
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm relative mb-4" role="alert">
+              {error}
+            </div>
+          )}
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-sm relative mb-4" role="alert">
+              {successMessage}
             </div>
           )}
 
           <div className="mb-4">
-            <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
-              Email
+            <label htmlFor="email" className="block text-gray-700 text-sm font-medium mb-2">
+              Username <span className="text-red-500">*</span>
             </label>
+            {/* PERBAIKAN DI SINI: Semua atribut input dalam satu tag pembuka */}
             <input
-              type="email"
-              id="email"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
-              placeholder="nama@contoh.com"
-              value={email}
+              type="text" // Ganti type="email" menjadi type="text"
+              id="email" // Biarkan id 'email' atau ganti jadi 'username' jika mau konsisten
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400" // Sesuaikan styling input
+              placeholder="Masukkan username Anda"
+              value={email} // Tetap pakai state email, tapi isinya username
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
 
           <div className="mb-6">
-            <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
-              Password
+            <label htmlFor="password" className="block text-gray-700 text-sm font-medium mb-2">
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
               id="password"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400"
               placeholder="********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -77,7 +110,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="bg-[#00AEEF] hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-150 ease-in-out"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:-translate-y-0.5 shadow-md hover:shadow-lg w-full"
           >
             Login
           </button>
